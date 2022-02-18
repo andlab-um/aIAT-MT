@@ -1,0 +1,95 @@
+---
+title: "anova1"
+author: "Xinyi Xu"
+date: "2/8/2021"
+output: html_document
+---
+```{r}
+remove.packages("data.table")
+install.packages("data.table", type = "source",
+    repos = "https://Rdatatable.gitlab.io/data.table")
+install.packages("lme4")
+install.packages("Matrix")
+install.packages("stargazer")
+install.packages("coxme")
+install.packages("survival")
+install.packages("bdsmatrix")
+install.packages("ez")
+install.packages('xlsx')
+install.packages('multcomp')
+install.packages('lsmeans')
+library(lsmeans)
+require(data.table)
+require(readxl)
+require(lme4)
+require(stargazer)
+require(coxme)
+require(ez)
+require(multcomp)
+library(afex)
+```
+
+```{r}
+dt <- read_excel("iat1_all.xlsx")
+dt <- data.table(dt)
+dt <- within(dt, {
+  subj_idx <- as.factor(subj_idx)
+  rt <- as.numeric(rt)
+  block <- as.numeric(block)
+  stim3 <- as.factor(stim3)
+  stim4 <- as.factor(stim4)
+  condition <- as.factor(condition)
+  error <- as.factor(error)
+  group <- as.factor(1)
+})
+```
+
+```{r}
+data1 <- droplevels(dt[subj_idx!=106])
+data1 <- droplevels(data1[(stim3=='ev1')|(stim3=='ev2')])
+data1 <- droplevels(data1[error == 0])
+data1 <- droplevels(data1[rt<5000])
+data1=subset(data1,block==4|block==7)
+
+```
+
+```{r}
+temp <- data1[, .(rt = mean(rt)), by = .(subj_idx,condition,stim3)]
+ezDesign(temp,y=subj_idx,x=stim3,col=condition)
+temp=droplevels(temp[(subj_idx!=101)&(subj_idx!=110)&(subj_idx!=112)&(subj_idx!=113)])
+ezANOVA(temp, dv = rt, wid = subj_idx, within= .(stim3,condition), type = 3)
+rm(temp)
+```
+
+```{r}
+temp <- data1[, .(rt = mean(rt)), by = .(subj_idx,condition,stim3,stim4)]
+temp=droplevels(temp[(subj_idx!=101)&(subj_idx!=110)&(subj_idx!=112)&(subj_idx!=113)&(subj_idx!=125)])
+ezDesign(temp,y=subj_idx,x=stim3,col=condition,row=stim4)
+ezANOVA(temp, dv = rt, wid = subj_idx, within= .(stim3,condition,stim4), type = 3)
+
+```
+
+
+
+
+
+```{r}
+a1=aov_ez(dv = 'rt', id = 'subj_idx', temp,within=c('condition','stim3','stim4'))
+a1
+ls1=lsmeans(a1, c("stim3"),by='condition')
+ls1
+update(pairs(ls1), by=NULL, adjust = 'tukey')
+pairs(update(pairs(ls1), by=NULL))
+lsmip(a1, stim3 ~ condition)
+```
+
+```{r}
+ls1=lsmeans(a1, c("condition"),by='stim3')
+ls1
+update(pairs(ls1), by=NULL, adjust = 'tukey')
+pairs(update(pairs(ls1), by=NULL))
+lsmip(a1, condition ~ stim3)
+```
+
+
+
